@@ -15,6 +15,7 @@ Your browser does not support the canvas element.
 <h2>Controls:</h2>
 <p>Click on the screen to start, and press escape to exit</br>
 w,a,s,d to move, q to distort, r to reset</br>
+hold Shift to run</br>
 i, o, and p to reset, increase, and decrease FOV (FOV will only go above 180 in fisheye mode)</br>
 f to toggle fisheye lens</br>
 b/h,n/j,m/k to increase/decrease room size, room height, and wall length respectively, and ',' to set to default</br>
@@ -626,7 +627,7 @@ function updatePosition(e) {
   mYvel += e.movementY;
 }
 
-setInterval(function(){ updateScreen(); }, 60);
+setInterval(function(){ updateScreen(); }, 30);
 
 
 </script>
