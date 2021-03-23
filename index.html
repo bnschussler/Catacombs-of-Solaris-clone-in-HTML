@@ -227,7 +227,7 @@ function vertexType( x,  y,  randSeed){ //where are openings at intersection (x,
     //srand(rand()*(x-rand())+rand()+x+2341);
     //srand(rand()*(y-rand())+rand()+y+8432);
     //return rand()%6;
-    return myrand(x,y,randSeed)%6;
+    return mymod(myrand(x,y,randSeed),6);
 }
 
 function wallOfVertex( axis,  x,  y,  randSeed){    //axis is an int (0:x, 1:y, 2:-x, 3:-y), would be better form to use an enum
