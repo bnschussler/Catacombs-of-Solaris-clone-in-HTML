@@ -10,27 +10,62 @@ Your browser does not support the canvas element.
 <p>
 <h1>Catacombs of Solaris clone</h1>
 <h2>Made by Benjamin Schussler</h2>
-<p></br>I originally made this project in C++, but transcribed it to JavaScript so I could put it in an HTML document.</p>
+</br>I originally made this project in C++, but transcribed it to JavaScript so I could put it in an HTML document.</p>
 
 <h2>Controls:</h2>
 <p>Click on the screen to start, and press escape to exit</br>
 w,a,s,d to move, q to distort, r to reset</br>
 hold Shift to run</br>
-i, o, and p to reset, increase, and decrease FOV (FOV will only go above 180 in fisheye mode)</br>
+t to change the texture (can only be changed after pressing r and before pressing q (or before pressing q for the first time))</br>
 f to toggle fisheye lens</br>
+i, o, and p to reset, increase, and decrease FOV (FOV will only go above 180 in fisheye mode)</br>
 b/h,n/j,m/k to increase/decrease room size, room height, and wall length respectively, and ',' to set to default</br>
 l to toggle inverted mouse</br>
-t to change the texture (can only be changed after pressing r and before pressing q (or before pressing q for the first time))</br>
 e to toggle random hallways </br>
+type '~' to win!</br></br>
 
 (also, collision detection can be turned off by setting collisions=false in the html script, but rendering inside of solid objects may cause flashing imagery.)</p>
+
+<script src="getPicture.js"></script>
 
 <script>
 //https://developer.mozilla.org/en-US/docs/Web/API/Pointer_Lock_API
 
+function wrap( num,  max){
+    return (num%max+max)%max;
+}
+
+function getPixelfromImage(x,y,image){
+    switch(image){
+        case "globe":
+            var temp=getDatafromImage(wrap(x,1),wrap(y,1),image); 
+            return new Vec3(temp[0],temp[1],temp[2]);   //returns a Vec3
+            break;
+        case "win":
+            return getDatafromImage(Math.floor(wrap(x,1)*874),Math.floor(wrap(y,1)*140),image);  //returns a boolean
+    }
+}
+
 function mymod(x, mod){
     return x-mod*Math.floor(x/mod);
 }
+
+
+//https://stackoverflow.com/questions/34953778/calculate-the-lcm-of-two-or-three-numbers-in-javascript
+function gcd2(a, b) {
+  // Greatest common divisor of 2 integers
+  if(!b) return b===0 ? a : NaN;
+  return gcd2(b, a%b);
+}
+function lcm2(a, b) {
+  // Least common multiple of 2 integers
+  return a*b / gcd2(a, b);
+}
+
+function distEuc(x,y){
+    return Math.sqrt(Math.pow(x,2)+Math.pow(y,2));
+}
+
 
 class Vec3{
     constructor(x,y,z){
@@ -51,11 +86,6 @@ class Vec3{
         return new Vec3(this.x,this.y,this.z);
     }
     norm(){ //normalize to magnitude 1
-        /*alert("tempNorm");
-        alert(this.x);
-        alert("tempMag");
-        alert(this.mag());
-        alert("tempMagEnd");*/
         return this.mul(1/this.mag());
     }
     add(vec){
@@ -141,6 +171,10 @@ class Dir{
         this.th=th;
         this.a=a;
     }
+
+    neg(){
+        return new Dir(this.th+PI,-this.a)
+    }
 }
 
 var canvas = document.getElementById("myCanvas");
@@ -161,10 +195,7 @@ function getRandomInt(max) {
 }
 
 //variables (some unused)
-var date=new Date();
-var a; //a,b,delta for timing
-var b=date.getTime();
-var delta = 0;
+var t=0;
 
 var temp;
 var tempX;
@@ -183,6 +214,7 @@ var textureFixed=false;
 var collisions=true; //always true; collision detection can be turned off by setting collisions=false, but rendering inside of solid objects may cause flashing imagery.
 var randomHalls=true;
 var update=false;
+var randSeed=getRandomInt(10000);
 
 var currentPic=[];
 var row=[];
@@ -214,20 +246,12 @@ var move_lft=false;
 var move_rght=false;
 var pix=new Vec3(0,0,0);
 
-function wrap( num,  max){
-    return (num%max+max)%max;
-}
-
 function myrand(x,y,r){
     return r*x*y+x*x^r-y*y&x+r; //janky PRNG that works well enough
 }
 
 function vertexType( x,  y,  randSeed){ //where are openings at intersection (x,y)
-    //srand(randSeed); need JS equivalent of srand
-    //srand(rand()*(x-rand())+rand()+x+2341);
-    //srand(rand()*(y-rand())+rand()+y+8432);
-    //return rand()%6;
-    return mymod(myrand(x,y,randSeed),6);
+    return wrap(myrand(x,y,randSeed),6);
 }
 
 function wallOfVertex( axis,  x,  y,  randSeed){    //axis is an int (0:x, 1:y, 2:-x, 3:-y), would be better form to use an enum
@@ -256,12 +280,11 @@ function wallAt( axis,  x,  y,  randSeed){  //axis 0=x, 1=y
            wallOfVertex((axis+2)%4, x-(axis===0?1:0), y-(axis===1?1:0), randSeed);
 }
 
-function distv( pos,  vel, roomSize,  wallSize,  roomHeight,  randomHalls){    //distance which uses ray velocity to get a better estimate
+function distv( pos,  vel, roomSize,  wallSize,  roomHeight,  randomHalls,randSeed){    //distance which uses ray velocity to get a better estimate
 
     if(randomHalls){
-        var x=wallAt(0,Math.floor(pos.x/roomSize+.5),Math.floor(pos.y/roomSize),333);//myrand(0,Math.floor(pos.x/25+.5),Math.floor(pos.y/25));
-        var y=wallAt(1,Math.floor(pos.x/roomSize),Math.floor(pos.y/roomSize+.5),333);//myrand(0,Math.floor(pos.x/25),Math.floor(pos.y/25+.5));
-        //int wall=wallType('x',Math.floor(pos.x/25+.5),Math.floor(pos.y/25),333);
+        var x=wallAt(0,Math.floor(pos.x/roomSize+.5),Math.floor(pos.y/roomSize),randSeed);//myrand(0,Math.floor(pos.x/25+.5),Math.floor(pos.y/25));
+        var y=wallAt(1,Math.floor(pos.x/roomSize),Math.floor(pos.y/roomSize+.5),randSeed);//myrand(0,Math.floor(pos.x/25),Math.floor(pos.y/25+.5));
 
         var mx=mymod(pos.x,roomSize);
         var my=mymod(pos.y,roomSize);
@@ -282,10 +305,10 @@ function distv( pos,  vel, roomSize,  wallSize,  roomHeight,  randomHalls){    /
                     (roomHeight/2-Math.abs(pos.z))/Math.abs(vel.z));
 }
 
-function dist( pos, roomSize,  wallSize,  roomHeight,  randomHalls){
+function dist( pos, roomSize,  wallSize,  roomHeight,  randomHalls,randSeed){
     if(randomHalls){
-        var x=wallAt(0,Math.floor(pos.x/roomSize+.5),Math.floor(pos.y/roomSize),333);//myrand(0,Math.floor(pos.x/25+.5),Math.floor(pos.y/25));
-        var y=wallAt(1,Math.floor(pos.x/roomSize),Math.floor(pos.y/roomSize+.5),333);//myrand(0,Math.floor(pos.x/25),Math.floor(pos.y/25+.5));
+        var x=wallAt(0,Math.floor(pos.x/roomSize+.5),Math.floor(pos.y/roomSize),randSeed);//myrand(0,Math.floor(pos.x/25+.5),Math.floor(pos.y/25));
+        var y=wallAt(1,Math.floor(pos.x/roomSize),Math.floor(pos.y/roomSize+.5),randSeed);//myrand(0,Math.floor(pos.x/25),Math.floor(pos.y/25+.5));
         
         var dx=Math.abs(mymod(pos.x,roomSize)-roomSize/2);
         var dy=Math.abs(mymod(pos.y,roomSize)-roomSize/2);
@@ -306,11 +329,15 @@ function colorFromDir( texture,  facing){
 
 }
 
+function textureCoordFromDir(facing){
+    return [wrap(1+Math.floor(-PICTURE_RES_X*facing.th/(2*PI)),PICTURE_RES_X),wrap(Math.floor(PICTURE_RES_Y*(facing.a+PI/2)/PI),PICTURE_RES_Y)];
+}
+
 function colorFromPos( posAndDist,  texture,  centerPos,  useTexture,  textureFixed){
     //return Vec3(fmod(posAndDist.vec.x,2)*128,fmod(posAndDist.vec.y,2)*128,fmod(posAndDist.vec.z,2)*128);
 
     if(!textureFixed){
-        switch(useTexture){
+        switch(useTexture){ //the break; commands in this are technically unneccesarry
             case 0:
                 return colorFromDir(texture,Dir.dir(posAndDist.vec.add(centerPos.neg())));
                 break;
@@ -318,7 +345,18 @@ function colorFromPos( posAndDist,  texture,  centerPos,  useTexture,  textureFi
                 return new Vec3(255,255,255).mul(1-Math.min(posAndDist.w<30?posAndDist.w/70:(3./7-3./20+posAndDist.w/200),1));
                 break;
             case 2:
-                return posAndDist.vec.mod(2).mul(128);
+                return posAndDist.vec.mod(3).mul(256/3);
+                break;
+            case 3:
+                return getPixelfromImage((-Dir.dir(posAndDist.vec.add(centerPos.neg())).a+PI/2)/(2*PI),Dir.dir(posAndDist.vec.add(centerPos.neg())).th/(2*PI),"globe");
+                //var temp=getPixelfromImage(0,0);
+                //return new Vec3(temp[0],temp[1],temp[2]);
+                break;
+            case 4:
+                return new Vec3(160,mymod(posAndDist.vec.z*200,255)*.75,mymod(posAndDist.vec.z*200,255),255);
+                break;
+            case 5:
+                return new Vec3(160,mymod((Math.sin(posAndDist.vec.x+posAndDist.vec.y+t/10)/4+posAndDist.vec.z)*200,255),mymod((Math.sin(posAndDist.vec.x+posAndDist.vec.y+t/10)/4+posAndDist.vec.z)*200,255));
                 break;
         }
     }
@@ -338,21 +376,9 @@ function vecFromPixel( x,  y,  facing,  FOV,  fisheye){
                               PI*FOV*(-y+WINDOW_HEIGHT/2)/(WINDOW_HEIGHT*180))):
                     facing.fwd().add(facing.side().mul(PI*FOV*(-x+WINDOW_WIDTH/2)/(WINDOW_WIDTH*180))).add(
                             facing.up().mul(PI*FOV*(-y+WINDOW_HEIGHT/2)/(WINDOW_HEIGHT*180))).norm();
-    
-    /*if(fisheye){
-        return facing.compose(Dir(PI*FOV*(-x+WINDOW_WIDTH/2)/(WINDOW_WIDTH*180),
-                              PI*FOV*(-y+WINDOW_HEIGHT/2)/(WINDOW_HEIGHT*180)));
-    }
-    else{
-        var temp1=facing.fwd();
-        var temp2=facing.side();
-        var temp3=temp2.mul(PI*FOV*(-x+WINDOW_WIDTH/2)/(WINDOW_WIDTH*180));
-        var temp4=temp3.add(facing.up().mul(PI*FOV*(-y+WINDOW_HEIGHT/2)/(WINDOW_HEIGHT*180))).norm();
-        return temp4;
-    }*/
 }
 
-function march( pos, vel, maxSteps, minDist,  roomSize,  wallSize,  roomHeight,  randomHalls){ //returns position of surface and number of steps
+function march( pos, vel, maxSteps, minDist,  roomSize,  wallSize,  roomHeight,  randomHalls,randSeed){ //returns position of surface and number of steps
 
     var raypos=pos.copy();
     var num=0;
@@ -360,7 +386,7 @@ function march( pos, vel, maxSteps, minDist,  roomSize,  wallSize,  roomHeight, 
 
     for(var i=0;i<=maxSteps;i++){
         vel=vel.norm();
-        d=distv(raypos,vel, roomSize, wallSize, roomHeight, randomHalls);
+        d=distv(raypos,vel, roomSize, wallSize, roomHeight, randomHalls,randSeed);
         num+=d;
         if(d>minDist){
             vel=vel.mul(d);
@@ -373,25 +399,26 @@ function march( pos, vel, maxSteps, minDist,  roomSize,  wallSize,  roomHeight, 
     return new Vec4(raypos,32767);
 }
 
-function getPixel( x, y, pos, facing, texture, centerPos,  roomSize,  wallSize,  roomHeight,  FOV,  fisheye,  useTexture,  textureFixed,  randomHalls){
+function getPixel( x, y, pos, facing, texture, centerPos,  roomSize,  wallSize,  roomHeight,  FOV,  fisheye,  useTexture,  textureFixed,  randomHalls,randSeed){
     //alert("temp.5");
     var vel=vecFromPixel(x,y,facing, FOV, fisheye);
     //alert("temp1");
-    return colorFromPos(march(pos,vel,RDIST,MINMARCH, roomSize, wallSize, roomHeight, randomHalls),texture,centerPos, useTexture, textureFixed);
+    return colorFromPos(march(pos,vel,RDIST,MINMARCH, roomSize, wallSize, roomHeight, randomHalls,randSeed),texture,centerPos, useTexture, textureFixed);
 }
 
-function distort( currentPic,  centerPos,  pos, facing,  endFacing,  roomSize,  wallSize,  roomHeight,  useTexture,  textureFixed,  randomHalls){
+function distort( currentPic,  centerPos,  pos, facing,  endFacing,  roomSize,  wallSize,  roomHeight,  useTexture,  textureFixed,  randomHalls,randSeed){
     var currentPic1=[];
     var row=[];
     for(var i=0;i<PICTURE_RES_X;i++){
         for(var j=0;j<PICTURE_RES_Y;j++){
-            row.push(colorFromPos(march(pos,facing.compose(new Dir(i*2*PI/PICTURE_RES_X-endFacing.th,j*PI/PICTURE_RES_Y-PI/2)),RDIST,MINMARCH, roomSize, wallSize, roomHeight, randomHalls),currentPic,centerPos, useTexture, textureFixed));
+            row.push(colorFromPos(march(pos,new Dir(facing.th,0).compose(new Dir(i*2*PI/PICTURE_RES_X-endFacing.th,j*PI/PICTURE_RES_Y-PI/2)),RDIST,MINMARCH, roomSize, wallSize, roomHeight, randomHalls,randSeed),currentPic,centerPos, useTexture, textureFixed));
             //getPixel(int x,int y,Vec3 pos,Dir facing,Vec3 texture[PICTURE_RES][PICTURE_RES])
         }
         currentPic1.push(row);
         row=[];
     }
 
+            //alert("doing thing");
     for(var i=0;i<PICTURE_RES_X;i++){
         for(var j=0;j<PICTURE_RES_Y;j++){
             currentPic[i][j]=currentPic1[i][j].copy();
@@ -399,9 +426,24 @@ function distort( currentPic,  centerPos,  pos, facing,  endFacing,  roomSize,  
     }
 }
 
-function updateScreen(){
-    //alert("key");
+function addTexture(currentPic,facing, FOV, fisheye){    //adds the "you win!" text
+    var x;
+    var y;
+    var i;
+    var coord;
+    for (x = 0; x < WINDOW_WIDTH; x+=PIXSIZ){for (y = 0; y < WINDOW_HEIGHT; y+=PIXSIZ){
+        if(getPixelfromImage(x/WINDOW_WIDTH,y/WINDOW_HEIGHT,"win")){
+            coord=textureCoordFromDir(Dir.dir(vecFromPixel(x,y/2+WINDOW_HEIGHT/4,facing, FOV, fisheye)));
+            for(i=0;i<2;i++){
+                currentPic[wrap(coord[0]+i,PICTURE_RES_X)][coord[1]]=new Vec3(0,255,0);
+            }
+        }
+    }}
 
+
+}
+
+function updateScreen(){
     //set camera direction
     facing.th+=(invertedMouse?1:-1)*2*PI*(mXvel/WINDOW_WIDTH);
     facing.a+=(invertedMouse?1:-1)*PI*(mYvel/WINDOW_HEIGHT);
@@ -426,12 +468,12 @@ function updateScreen(){
     }
 
     pos=pos.add(vel.X());
-    if(collisions && dist(pos, roomSize, wallSize, roomHeight, randomHalls)<=MINMARCH){
+    if(collisions && dist(pos, roomSize, wallSize, roomHeight, randomHalls,randSeed)<=MINMARCH){
         pos=pos.add(vel.X().neg());
     }
 
     pos=pos.add(vel.Y());
-    if(collisions && dist(pos, roomSize, wallSize, roomHeight, randomHalls)<=MINMARCH){
+    if(collisions && dist(pos, roomSize, wallSize, roomHeight, randomHalls,randSeed)<=MINMARCH){
         pos=pos.add(vel.Y().neg());
     }
 
@@ -439,7 +481,8 @@ function updateScreen(){
     for (x = 0; x < WINDOW_WIDTH; x+=PIXSIZ){for (y = 0; y < WINDOW_HEIGHT; y+=PIXSIZ){
 
         //get pixel
-        pix=getPixel(x,y,pos,facing,currentPic,centerPos, roomSize, wallSize, roomHeight, FOV, fisheye, useTexture, textureFixed, randomHalls);
+        pix=getPixel(x,y,pos,facing,currentPic,centerPos, roomSize, wallSize, roomHeight, FOV, fisheye, useTexture, textureFixed, randomHalls,randSeed);
+        //pix=getPixelfromImage(x/WINDOW_WIDTH,y/WINDOW_HEIGHT);
 
         //set pixel
         ctx.fillStyle = `rgb(
@@ -449,22 +492,9 @@ function updateScreen(){
         ctx.fillRect(x,y,PIXSIZ,PIXSIZ);
     }}
     //alert("updated");
-    //setTimeout(updateScreen, 3000);
+    t++;
 }
 
-window.addEventListener('keydown',this.keyPressed,false);
-window.addEventListener('keyup',this.keyReleased,false);
-
-/*document.getElementById("myCanvas").onmousemove = function(event) {mouseMoved(event)};
-
-function mouseMoved(e) {
-  mXvel = e.clientX-mouseX;
-  mYvel = e.clientY-mouseY;
-  mouseX=e.clientX;
-  mouseY=e.clientY;
-  //updateScreen();
-  //update=true;
-}*/
 
 function keyPressed(e) {
     //alert(e.key);
@@ -488,12 +518,19 @@ function keyPressed(e) {
 
             temp=0.01;//rand()%2==0?0:PI/4;//2*PI*(rand()%100)/100.;   //set to something other than zero to change the direction you face after distorting
 
-            distort(currentPic,centerPos,pos,facing,new Dir(temp,0), roomSize, wallSize, roomHeight, useTexture, textureFixed, randomHalls);
+            distort(currentPic,centerPos,pos,facing,new Dir(temp,0), roomSize, wallSize, roomHeight, useTexture, textureFixed, randomHalls,randSeed);
 
             pos.set(0,0,0);
-
+            centerPos.set(0,0,0);
             facing.set(temp,0);
             textureFixed=true;
+            randSeed=getRandomInt(10000);
+            break;
+        case '~':
+            distort(currentPic,centerPos,pos,facing,facing, roomSize, wallSize, roomHeight, useTexture, textureFixed, randomHalls,randSeed);
+            addTexture(currentPic,facing, FOV, fisheye);
+            textureFixed=true;
+            centerPos.set(pos.x,pos.y,pos.z);
             break;
         case 'r':
             currentPic=[];
@@ -505,6 +542,8 @@ function keyPressed(e) {
                 row=[];
             }
             pos.set(0,0,0);
+            centerPos.set(0,0,0);
+            facing.set(0,0);
             centerFacing.set(0,0);
             textureFixed=false;
 
@@ -548,7 +587,7 @@ function keyPressed(e) {
             break;
         case 't':
             if(!textureFixed){
-                useTexture=(useTexture+1)%3;
+                useTexture=(useTexture+1)%6;
             }
             break;
         case 'e':
@@ -579,18 +618,6 @@ switch(e.key.toLowerCase()){
             break;
     }
 }
-
-//ctx.fillStyle = "#FF0000";
-//ctx.fillRect(0,0,150,75);
-
-/*for(var time=0;time<100;time++){
-    a=date.getTime();
-    delta=a-b;
-    if(delta>1000/MAX_FRAMERATE && (update || move_fwd || move_rght || move_lft || move_bk)){
-        update=false;
-        setTimeout(updateScreen, 3000);
-    }
-}*/
 
 //lock pointer code
 canvas.requestPointerLock = canvas.requestPointerLock ||
@@ -627,7 +654,10 @@ function updatePosition(e) {
   mYvel += e.movementY;
 }
 
-setInterval(function(){ updateScreen(); }, 30);
+
+window.addEventListener('keydown',this.keyPressed,false);
+window.addEventListener('keyup',this.keyReleased,false);
+setInterval(function(){ updateScreen();}, 30);
 
 
 </script>
