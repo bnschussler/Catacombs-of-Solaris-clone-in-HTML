@@ -411,7 +411,7 @@ function distort( currentPic,  centerPos,  pos, facing,  endFacing,  roomSize,  
     var row=[];
     for(var i=0;i<PICTURE_RES_X;i++){
         for(var j=0;j<PICTURE_RES_Y;j++){
-            row.push(colorFromPos(march(pos,new Dir(facing.th,0).compose(new Dir(i*2*PI/PICTURE_RES_X-endFacing.th,j*PI/PICTURE_RES_Y-PI/2)),RDIST,MINMARCH, roomSize, wallSize, roomHeight, randomHalls,randSeed),currentPic,centerPos, useTexture, textureFixed));
+            row.push(colorFromPos(march(pos,new Dir(facing.th,facing.a-endFacing.a).compose(new Dir(i*2*PI/PICTURE_RES_X-endFacing.th,j*PI/PICTURE_RES_Y-PI/2)),RDIST,MINMARCH, roomSize, wallSize, roomHeight, randomHalls,randSeed),currentPic,centerPos, useTexture, textureFixed));
             //getPixel(int x,int y,Vec3 pos,Dir facing,Vec3 texture[PICTURE_RES][PICTURE_RES])
         }
         currentPic1.push(row);
@@ -521,7 +521,7 @@ function keyPressed(e) {
             distort(currentPic,centerPos,pos,facing,new Dir(temp,0), roomSize, wallSize, roomHeight, useTexture, textureFixed, randomHalls,randSeed);
 
             pos.set(0,0,0);
-            centerPos.set(0,0,0);
+            centerPos.set(pos.x,pos.y,pos.z);
             facing.set(temp,0);
             textureFixed=true;
             randSeed=getRandomInt(10000);
