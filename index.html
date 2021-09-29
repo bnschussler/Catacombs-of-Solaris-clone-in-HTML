@@ -26,7 +26,7 @@ Screen Resolution:
 w,a,s,d to move, q to distort, r to reset</br>
 hold Shift to run</br></br>
 </br><h3>More Controls:</h3>
-t to change the texture (only if you haven't distorted yet)</br>
+t to change the texture</br>
 f to toggle fisheye lens</br>
 i, o, and p to reset, increase, and decrease FOV (FOV will only go above 180 in fisheye mode)</br>
 b/h,n/j,m/k to increase/decrease room size, room height, and wall length respectively, and ',' to set to default</br>
@@ -560,7 +560,9 @@ function keyPressed(e) {
             addTexture(currentPic,facing, FOV, fisheye);
             textureFixed=true;
             centerPos.set(pos.x,pos.y,pos.z);
-            break;
+            break;        
+        case 't':
+            useTexture=(useTexture+1)%6;
         case 'r':
             currentPic=[];
             for(var i=0;i<PICTURE_RES_X;i++){
@@ -613,11 +615,6 @@ function keyPressed(e) {
             wallSize=16;
         case 'l':
             invertedMouse=!invertedMouse;
-            break;
-        case 't':
-            if(!textureFixed){
-                useTexture=(useTexture+1)%6;
-            }
             break;
         case 'e':
             randomHalls=!randomHalls;
