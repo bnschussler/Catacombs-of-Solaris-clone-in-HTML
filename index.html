@@ -246,14 +246,18 @@ var update=false;
 var randSeed=getRandomInt(10000);
 
 var currentPic=[];
-var row=[];
-for(var i=0;i<PICTURE_RES_X;i++){
-    for(var j=0;j<PICTURE_RES_Y;j++){
-        row.push(new Vec3(getRandomInt(255),getRandomInt(255),getRandomInt(255)));
+function randomizeTexture(){
+    currentPic=[];
+    var row=[];
+    for(var i=0;i<PICTURE_RES_X;i++){
+        for(var j=0;j<PICTURE_RES_Y;j++){
+            row.push(new Vec3(getRandomInt(255),getRandomInt(255),getRandomInt(255)));
+        }
+        currentPic.push(row);
+        row=[];
     }
-    currentPic.push(row);
-    row=[];
 }
+randomizeTexture();
 
 var centerPos=new Vec3(0,0,0);
 var pos=new Vec3(25,25,0);
@@ -560,24 +564,19 @@ function keyPressed(e) {
             addTexture(currentPic,facing, FOV, fisheye);
             textureFixed=true;
             centerPos.set(pos.x,pos.y,pos.z);
-            break;        
-        case 't':
-            useTexture=(useTexture+1)%6;
+            break;
         case 'r':
-            currentPic=[];
-            for(var i=0;i<PICTURE_RES_X;i++){
-                for(var j=0;j<PICTURE_RES_Y;j++){
-                    row.push(new Vec3(getRandomInt(255),getRandomInt(255),getRandomInt(255)));
-                }
-                currentPic.push(row);
-                row=[];
-            }
+            randomizeTexture();
             pos.set(0,0,0);
             centerPos.set(0,0,0);
             facing.set(0.01,0);
             centerFacing.set(0,0);
             textureFixed=false;
-
+            break;
+        case 't':
+            useTexture=(useTexture+1)%6;
+            randomizeTexture();
+            textureFixed=false;
             break;
         case 'i':
             FOV=90;
