@@ -228,7 +228,9 @@
          var tempY;
          var tempPos;
          
-         var speed=.5;
+         var walkspeed=.5;
+         var runspeed=.5;
+         var speed=walkspeed;
          var roomSize=25;
          var wallSize=16;
          var roomHeight=10;
@@ -530,7 +532,7 @@
              //alert(e.key);
              switch(e.key.toLowerCase()){
                  case "shift":
-                     speed*=2;
+                     speed=runspeed;
                      break;
                  case 'w':
                      move_fwd=true;
@@ -624,7 +626,7 @@
          function keyReleased(e){
          switch(e.key.toLowerCase()){
                  case "shift":
-                     speed/=2;
+                     speed=walkspeed;
                      break;
                  case 'w':
                      move_fwd=false;
